@@ -1,12 +1,16 @@
 const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtRlBFHRViiLrjzmlEvxgI8-1UNwfrJWJU7fsej4eO6dLOEEzozvd_03KmgWhAIZonrzb2QupMcvVK/pub?gid=0&single=true&output=csv";
 
-// --- PURE MATH TIME PARSER ---
+// --- THE FIX: REGEX TIME PARSER ---
+// This grabs the numbers directly, making it impossible to duplicate the hours into minutes.
 function timeStrToSeconds(timeStr) {
     if (!timeStr) return 0;
-    const parts = timeStr.split(':');
-    const h = parseInt(parts || 0, 10);
-    const m = parseInt(parts || 0, 10);
-    const s = parseInt(parts || 0, 10);
+    const matches = timeStr.match(/\d+/g); 
+    if (!matches || matches.length < 2) return 0;
+    
+    const h = parseInt(matches, 10);
+    const m = parseInt(matches, 10);
+    const s = matches ? parseInt(matches, 10) : 0;
+    
     return (h * 3600) + (m * 60) + s;
 }
 
@@ -123,7 +127,6 @@ function buildDashboard(data) {
                     <div class="countdown-wrapper">
                         <div class="estimated-label">ESTIMATED SPAWN IN</div>
                         <div class="countdown" data-time="${fullTime}">--</div>
-                        <div class="math-debug" style="font-size:10px; color:var(--text-muted); margin-top:4px;"></div>
                     </div>`;
             } else {
                 card.innerHTML = `
@@ -131,7 +134,6 @@ function buildDashboard(data) {
                     <p class="boss-time">Time: ${displayTime}</p>
                     <div class="countdown-wrapper">
                         <div class="countdown" data-time="${fullTime}">--</div>
-                        <div class="math-debug" style="font-size:10px; color:var(--text-muted); margin-top:4px;"></div>
                     </div>`;
             }
             container.appendChild(card);
@@ -163,9 +165,6 @@ function buildDashboard(data) {
 
 function updateTimers() {
     const now = new Date(); 
-    // Format device time exactly as it is checking it
-    const deviceH = now.getHours().toString().padStart(2, '0');
-    const deviceM = now.getMinutes().toString().padStart(2, '0');
     const currentSeconds = (now.getHours() * 3600) + (now.getMinutes() * 60) + now.getSeconds();
 
     const timerToggleEl = document.getElementById('timer-toggle');
@@ -174,20 +173,12 @@ function updateTimers() {
     document.querySelectorAll('.boss-card').forEach(card => {
         const isMonarch = card.classList.contains('monarch-card');
         const countdownEl = card.querySelector('.countdown');
-        const debugEl = card.querySelector('.math-debug');
         const targetTimeStr = card.dataset.target;
         
         const targetSeconds = timeStrToSeconds(targetTimeStr);
-        const parsedH = Math.floor(targetSeconds / 3600).toString().padStart(2, '0');
-        const parsedM = Math.floor((targetSeconds % 3600) / 60).toString().padStart(2, '0');
 
         card.classList.remove('dimmed');
         countdownEl.classList.remove('spawning');
-
-        // DIAGNOSTIC PRINTOUT - This will tell us exactly where the math is failing
-        if (debugEl) {
-            debugEl.innerText = `Device: ${deviceH}:${deviceM} | Parsed: ${parsedH}:${parsedM}`;
-        }
 
         if (isMonarch) {
             const killTimerEl = card.querySelector('.kill-timer');
