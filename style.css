@@ -166,16 +166,10 @@ input:checked + .slider:before { transform: translateX(16px); }
     color: var(--text-muted);
 }
 
-/* Red warning state for the 5-minute spawn window */
+/* Red warning state */
 .countdown.spawning {
-    color: #ff3333 !important; /* Bright Red */
-    animation: pulse 1.5s infinite; /* Optional: adds a subtle heartbeat effect */
-}
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.7; }
-    100% { opacity: 1; }
+    color: #ff3333 !important; 
+    font-weight: 800; /* Made slightly bolder to still grab attention */
 }
 
 /* --- Monarch Specific Styles --- */
