@@ -47,7 +47,7 @@ function buildDashboard(data) {
         const container = col.querySelector('.card-container');
         const regionBosses = todaysData.filter(row => row.Region === region);
         
-        // Build the active cards
+        // Build the active cards for TODAY
         regionBosses.forEach(boss => {
             const card = document.createElement('div');
             card.className = 'boss-card';
@@ -71,24 +71,37 @@ function buildDashboard(data) {
             container.appendChild(card);
         });
 
-        // --- NEW: Inject the Collapsible Dropdown for Monarch ---
+        // --- UPDATED: Inject the Collapsible Dropdown for ALL Monarch Times ---
         if (region.toLowerCase() === 'monarch') {
             const details = document.createElement('details');
             details.className = 'monarch-dropdown';
             
             let listHTML = '';
-            // Sort them chronologically just for the list view
-            const sortedBosses = [...regionBosses].sort((a, b) => a.TargetTime.localeCompare(b.TargetTime));
             
-            sortedBosses.forEach(b => {
-                listHTML += `<li><strong>${b.BossName}</strong> <span>${b.TargetTime}</span></li>`;
+            // Get ALL Monarch data from the full spreadsheet, not just today's
+            const allMonarchBosses = data.filter(row => row.Region && row.Region.toLowerCase() === 'monarch');
+            
+            // Map the days to numbers so we can sort them chronologically (Monday -> Sunday)
+            const daysOfWeek = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7 };
+            
+            // Sort by Day first, then by Target Time
+            allMonarchBosses.sort((a, b) => {
+                if (daysOfWeek[a.Weekday] !== daysOfWeek[b.Weekday]) {
+                    return daysOfWeek[a.Weekday] - daysOfWeek[b.Weekday];
+                }
+                return a.TargetTime.localeCompare(b.TargetTime);
+            });
+            
+            // Build the list HTML with "Weekday, BossName"
+            allMonarchBosses.forEach(b => {
+                listHTML += `<li><strong>${b.Weekday}, ${b.BossName}</strong> <span>${b.TargetTime}</span></li>`;
             });
 
             details.innerHTML = `
                 <summary>View All Logged Times</summary>
                 <ul>${listHTML}</ul>
             `;
-            col.appendChild(details); // Appends it at the bottom of the Monarch column
+            col.appendChild(details); 
         }
 
         grid.appendChild(col);
