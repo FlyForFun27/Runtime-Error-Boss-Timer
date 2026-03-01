@@ -1,10 +1,24 @@
 const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtRlBFHRViiLrjzmlEvxgI8-1UNwfrJWJU7fsej4eO6dLOEEzozvd_03KmgWhAIZonrzb2QupMcvVK/pub?gid=0&single=true&output=csv";
 
 document.addEventListener("DOMContentLoaded", () => {
-    // --- 1. LOAD SAVED COLOR (If it exists) ---
+    // --- 1. LOAD SAVED PREFERENCES (Color & Toggle) ---
     const savedColor = localStorage.getItem('neoTimerThemeColor');
     if (savedColor) {
         document.documentElement.style.setProperty('--accent-color', savedColor);
+    }
+
+    const timerToggle = document.getElementById('timer-toggle');
+    const savedToggle = localStorage.getItem('neoTimerToggleState');
+    if (timerToggle) {
+        // Restore previous toggle state if it exists
+        if (savedToggle !== null) {
+            timerToggle.checked = savedToggle === 'true';
+        }
+        // Save state whenever it changes
+        timerToggle.addEventListener('change', (e) => {
+            localStorage.setItem('neoTimerToggleState', e.target.checked);
+            updateTimers();
+        });
     }
 
     // --- 2. COLOR PICKER LOGIC ---
@@ -13,17 +27,11 @@ document.addEventListener("DOMContentLoaded", () => {
         dot.addEventListener('click', (e) => {
             const selectedColor = e.target.getAttribute('data-color');
             document.documentElement.style.setProperty('--accent-color', selectedColor);
-            
-            // --- SAVE NEW COLOR TO LOCAL STORAGE ---
             localStorage.setItem('neoTimerThemeColor', selectedColor);
         });
     });
 
-    // --- 3. TIMER TOGGLE ---
-    const timerToggle = document.getElementById('timer-toggle');
-    if (timerToggle) { timerToggle.addEventListener('change', updateTimers); }
-
-    // --- 4. FETCH DATA ---
+    // --- 3. FETCH DATA ---
     Papa.parse(sheetUrl, {
         download: true,
         header: true,
@@ -34,20 +42,60 @@ document.addEventListener("DOMContentLoaded", () => {
             updateTimers(); 
         }
     });
-    
-// (Existing code for Top Clock...)
+
+    // --- 4. START TOP CLOCKS ---
     setInterval(updateTopClock, 1000);
     updateTopClock();
 
-    // --- NEW: Start Reset Timers ---
     setInterval(updateResetTimers, 1000);
     updateResetTimers();
-    
 });
 
 function updateTopClock() {
     const now = new Date();
     document.getElementById('top-clock').innerText = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function updateResetTimers() {
+    const now = new Date();
+
+    // --- Daily Reset (Every day at 6:00 AM Local) ---
+    const dailyReset = new Date();
+    dailyReset.setHours(6, 0, 0, 0);
+    
+    // If it is past 6:00 AM, aim for tomorrow
+    if (now >= dailyReset) {
+        dailyReset.setDate(dailyReset.getDate() + 1);
+    }
+    
+    const dDiff = dailyReset - now;
+    const dH = Math.floor(dDiff / (1000 * 60 * 60));
+    const dM = Math.floor((dDiff % (1000 * 60 * 60)) / (1000 * 60));
+    const dS = Math.floor((dDiff % (1000 * 60)) / 1000);
+    
+    document.getElementById('daily-reset').innerText = 
+        `${dH}h ${dM.toString().padStart(2, '0')}m ${dS.toString().padStart(2, '0')}s`;
+
+    // --- Weekly Reset (Every Wednesday at 6:00 AM Local) ---
+    const weeklyReset = new Date();
+    weeklyReset.setHours(6, 0, 0, 0);
+    
+    let daysUntilWed = (3 - weeklyReset.getDay() + 7) % 7;
+    // If it's Wednesday but past 6:00 AM, aim for next week
+    if (daysUntilWed === 0 && now >= weeklyReset) {
+        daysUntilWed = 7;
+    }
+    weeklyReset.setDate(weeklyReset.getDate() + daysUntilWed);
+    
+    const wDiff = weeklyReset - now;
+    const wD = Math.floor(wDiff / (1000 * 60 * 60 * 24));
+    const wH = Math.floor((wDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const wM = Math.floor((wDiff % (1000 * 60 * 60)) / (1000 * 60));
+    const wS = Math.floor((wDiff % (1000 * 60)) / 1000);
+
+    const daysStr = wD > 0 ? `${wD}d ` : '';
+    document.getElementById('weekly-reset').innerText = 
+        `${daysStr}${wH}h ${wM.toString().padStart(2, '0')}m ${wS.toString().padStart(2, '0')}s`;
 }
 
 function buildDashboard(data) {
@@ -65,31 +113,35 @@ function buildDashboard(data) {
         const container = col.querySelector('.card-container');
         const regionBosses = todaysData.filter(row => row.Region === region);
         
-        // Build the active cards for TODAY
         regionBosses.forEach(boss => {
             const card = document.createElement('div');
             card.className = 'boss-card';
-            card.dataset.target = boss.TargetTime; 
+            
+            const fullTime = boss.TargetTime; // Expecting "HH:MM:SS"
+            card.dataset.target = fullTime; 
+            
+            // Trim down to "HH:MM" for clean UI display
+            const displayTime = fullTime.length >= 5 ? fullTime.substring(0, 5) : fullTime;
 
             if (region.toLowerCase() === 'monarch') {
                 card.classList.add('monarch-card');
                 card.innerHTML = `
                     <p class="boss-name">${boss.BossName}</p>
-                    <p class="time-since-kill">Time since kill: <span class="kill-timer" data-time="${boss.TargetTime}">--</span></p>
+                    <p class="time-since-kill">Time since kill: <span class="kill-timer" data-time="${fullTime}">--</span></p>
                     <div class="countdown-wrapper">
                         <div class="estimated-label">ESTIMATED SPAWN IN</div>
-                        <div class="countdown" data-time="${boss.TargetTime}">--</div>
+                        <div class="countdown" data-time="${fullTime}">--</div>
                     </div>`;
             } else {
                 card.innerHTML = `
                     <p class="boss-name">${boss.BossName}</p>
-                    <p class="boss-time">Time: ${boss.TargetTime}</p>
-                    <div class="countdown-wrapper"><div class="countdown" data-time="${boss.TargetTime}">--</div></div>`;
+                    <p class="boss-time">Time: ${displayTime}</p>
+                    <div class="countdown-wrapper"><div class="countdown" data-time="${fullTime}">--</div></div>`;
             }
             container.appendChild(card);
         });
 
-        // Inject the Collapsible Dropdown for ALL Monarch Times
+        // --- Monarch Dropdown Inject ---
         if (region.toLowerCase() === 'monarch') {
             const details = document.createElement('details');
             details.className = 'monarch-dropdown';
@@ -107,7 +159,8 @@ function buildDashboard(data) {
             });
             
             allMonarchBosses.forEach(b => {
-                listHTML += `<li><strong>${b.Weekday}, ${b.BossName}</strong> <span>${b.TargetTime}</span></li>`;
+                const dropDisplayTime = b.TargetTime.length >= 5 ? b.TargetTime.substring(0, 5) : b.TargetTime;
+                listHTML += `<li><strong>${b.Weekday}, ${b.BossName}</strong> <span>${dropDisplayTime}</span></li>`;
             });
 
             details.innerHTML = `
@@ -130,9 +183,14 @@ function updateTimers() {
         const countdownEl = card.querySelector('.countdown');
         const targetTimeStr = card.dataset.target;
         
+        // --- PROPER HH:MM:SS PARSING ---
         const timeParts = targetTimeStr.split(':');
+        const targetHours = parseInt(timeParts, 10);
+        const targetMinutes = parseInt(timeParts, 10);
+        const targetSeconds = timeParts ? parseInt(timeParts, 10) : 0;
+        
         const targetDate = new Date();
-        targetDate.setHours(parseInt(timeParts), parseInt(timeParts), 0, 0);
+        targetDate.setHours(targetHours, targetMinutes, targetSeconds, 0);
 
         card.classList.remove('dimmed');
         countdownEl.classList.remove('spawning');
@@ -155,8 +213,10 @@ function updateTimers() {
             }
         } else {
             const diffMs = targetDate - now;
+            const displayTimeStr = targetTimeStr.length >= 5 ? targetTimeStr.substring(0, 5) : targetTimeStr;
+
             if (diffMs > 0) {
-                countdownEl.innerText = isTimerOn ? formatDuration(diffMs) : `Announcement at: ${targetTimeStr}`;
+                countdownEl.innerText = isTimerOn ? formatDuration(diffMs) : `Announcement at: ${displayTimeStr}`;
                 card.dataset.priority = "1"; // Upcoming
             } else if (diffMs <= 0 && diffMs > -300000) { 
                 countdownEl.innerText = `Spawning in: ${formatDuration(300000 + diffMs)}`;
@@ -190,49 +250,4 @@ function formatDuration(ms) {
     return h > 0 
         ? `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s` 
         : `${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
-}
-
-function updateResetTimers() {
-    const now = new Date();
-
-    // --- 1. Daily Reset (Every day at 6:00 AM) ---
-    const dailyReset = new Date();
-    dailyReset.setHours(6, 0, 0, 0);
-    
-    // If it is currently past 6:00 AM today, the next reset is tomorrow
-    if (now >= dailyReset) {
-        dailyReset.setDate(dailyReset.getDate() + 1);
-    }
-    
-    const dDiff = dailyReset - now;
-    const dH = Math.floor(dDiff / (1000 * 60 * 60));
-    const dM = Math.floor((dDiff % (1000 * 60 * 60)) / (1000 * 60));
-    const dS = Math.floor((dDiff % (1000 * 60)) / 1000);
-    
-    document.getElementById('daily-reset').innerText = 
-        `${dH}h ${dM.toString().padStart(2, '0')}m ${dS.toString().padStart(2, '0')}s`;
-
-    // --- 2. Weekly Reset (Every Wednesday at 6:00 AM) ---
-    const weeklyReset = new Date();
-    weeklyReset.setHours(6, 0, 0, 0);
-    
-    // Date.getDay() returns 0 for Sunday, 1 for Monday, 2 for Tue, 3 for Wed
-    let daysUntilWed = (3 - weeklyReset.getDay() + 7) % 7;
-    
-    // If today is Wednesday (0 days until) BUT it's already past 6:00 AM, push to next week (+7)
-    if (daysUntilWed === 0 && now >= weeklyReset) {
-        daysUntilWed = 7;
-    }
-    weeklyReset.setDate(weeklyReset.getDate() + daysUntilWed);
-    
-    const wDiff = weeklyReset - now;
-    const wD = Math.floor(wDiff / (1000 * 60 * 60 * 24));
-    const wH = Math.floor((wDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const wM = Math.floor((wDiff % (1000 * 60 * 60)) / (1000 * 60));
-    const wS = Math.floor((wDiff % (1000 * 60)) / 1000);
-
-    // Only display days if there is 1 or more days left
-    const daysStr = wD > 0 ? `${wD}d ` : '';
-    document.getElementById('weekly-reset').innerText = 
-        `${daysStr}${wH}h ${wM.toString().padStart(2, '0')}m ${wS.toString().padStart(2, '0')}s`;
 }
