@@ -1,8 +1,7 @@
-// The link to your published Google Sheet CSV
 const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtRlBFHRViiLrjzmlEvxgI8-1UNwfrJWJU7fsej4eO6dLOEEzozvd_03KmgWhAIZonrzb2QupMcvVK/pub?gid=0&single=true&output=csv";
 
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Initialize Color Picker (Changes the CSS variable)
+    // 1. Initialize Color Picker
     const colorDots = document.querySelectorAll('.color-dot');
     colorDots.forEach(dot => {
         dot.addEventListener('click', (e) => {
@@ -11,75 +10,79 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // 2. Initialize Timer Toggle Listener (Updates immediately when clicked)
+    // 2. Initialize Timer Toggle
     const timerToggle = document.getElementById('timer-toggle');
     if (timerToggle) {
         timerToggle.addEventListener('change', updateTimers);
     }
 
-    // 3. Fetch CSV Data using PapaParse
+    // 3. Fetch CSV Data
     Papa.parse(sheetUrl, {
         download: true,
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
             buildDashboard(results.data);
-            
-            // Start the main timer loop (updates every 1 second)
             setInterval(updateTimers, 1000);
-            updateTimers(); // Run once immediately
+            updateTimers(); 
         },
         error: function(err) {
             console.error("Error loading CSV:", err);
         }
     });
 
-    // 4. Start Top Right Live Clock
+    // 4. Start Top Right Clock
     setInterval(updateTopClock, 1000);
     updateTopClock();
 });
 
-// Updates the small clock in the top right corner
 function updateTopClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     document.getElementById('top-clock').innerText = timeString;
 }
 
-// Builds the UI columns and cards based on today's schedule
 function buildDashboard(data) {
     const grid = document.getElementById('timers-grid');
     grid.innerHTML = ''; 
     
-    // Get today's weekday name (e.g., "Sunday", "Monday")
     const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
-
-    // Filter for today's data and find active regions
     const todaysData = data.filter(row => row.Weekday === today);
     const activeRegionsForToday = [...new Set(todaysData.map(row => row.Region))];
 
     activeRegionsForToday.forEach(region => {
-        // Create Region Column
         const col = document.createElement('div');
         col.className = 'region-column';
         col.innerHTML = `<h3>${region.toUpperCase()}</h3>`;
 
-        // Get bosses for this region and SORT them by time (earliest first)
         const regionBosses = todaysData.filter(row => row.Region === region);
         regionBosses.sort((a, b) => a.TargetTime.localeCompare(b.TargetTime));
         
-        // Build cards
         regionBosses.forEach(boss => {
             const card = document.createElement('div');
             card.className = 'boss-card';
             
-            card.innerHTML = `
-                <p class="boss-name">${boss.BossName}</p>
-                <p class="boss-time">Time: ${boss.TargetTime}</p>
-                <div class="countdown-wrapper">
-                    <div class="countdown" data-time="${boss.TargetTime}">Calculating...</div>
-                </div>
-            `;
+            // --- NEW LOGIC: Check if it's a Monarch Boss ---
+            if (region.toLowerCase() === 'monarch') {
+                card.classList.add('monarch-card');
+                card.innerHTML = `
+                    <p class="boss-name">${boss.BossName}</p>
+                    <p class="time-since-kill">Time since kill: <span class="kill-timer" data-time="${boss.TargetTime}">--h --m --s</span></p>
+                    <div class="countdown-wrapper">
+                        <div class="estimated-label">ESTIMATED SPAWN IN</div>
+                        <div class="countdown" data-time="${boss.TargetTime}">Calculating...</div>
+                    </div>
+                `;
+            } else {
+                // --- REGULAR LOGIC ---
+                card.innerHTML = `
+                    <p class="boss-name">${boss.BossName}</p>
+                    <p class="boss-time">Time: ${boss.TargetTime}</p>
+                    <div class="countdown-wrapper">
+                        <div class="countdown" data-time="${boss.TargetTime}">Calculating...</div>
+                    </div>
+                `;
+            }
             col.appendChild(card);
         });
 
@@ -87,71 +90,100 @@ function buildDashboard(data) {
     });
 }
 
-// The core math for all countdowns and states
 function updateTimers() {
     const now = new Date(); 
     const isTimerOn = document.getElementById('timer-toggle').checked;
-    const countdownElements = document.querySelectorAll('.countdown');
+    const cards = document.querySelectorAll('.boss-card');
 
-    countdownElements.forEach(el => {
-        const targetTimeStr = el.getAttribute('data-time');
+    cards.forEach(card => {
+        const isMonarch = card.classList.contains('monarch-card');
+        const countdownEl = card.querySelector('.countdown');
+        const targetTimeStr = countdownEl.getAttribute('data-time');
+        
         if (!targetTimeStr) return;
         
-        // Parse time (e.g., "14:55" -> 14 hours, 55 minutes)
         const timeParts = targetTimeStr.split(':');
         const targetHours = parseInt(timeParts, 10);
         const targetMinutes = parseInt(timeParts, 10);
         
-        // Create a date object for the target time TODAY
         const targetDate = new Date();
         targetDate.setHours(targetHours, targetMinutes, 0, 0);
 
-        // Difference in milliseconds
-        const diffMs = targetDate - now;
-        const cardElement = el.closest('.boss-card');
+        // Reset states
+        card.classList.remove('dimmed');
+        countdownEl.classList.remove('spawning');
+        countdownEl.style.color = "";
 
-        // Reset visual states first
-        cardElement.classList.remove('dimmed');
-        el.classList.remove('spawning');
-        el.style.color = ""; // Reset inline color changes
+        // ==========================================
+        //         MONARCH LOGIC (Count UP & +2.5h)
+        // ==========================================
+        if (isMonarch) {
+            const killTimerEl = card.querySelector('.kill-timer');
+            
+            // 1. Time since kill (Now - TargetTime)
+            let diffKill = now - targetDate;
+            if (diffKill < 0) diffKill = 0; // Fallback if time is slightly weird
+            
+            const killH = Math.floor(diffKill / (1000 * 60 * 60));
+            const killM = Math.floor((diffKill % (1000 * 60 * 60)) / (1000 * 60));
+            const killS = Math.floor((diffKill % (1000 * 60)) / 1000);
+            
+            killTimerEl.innerText = `${killH}h ${killM}m ${killS}s`;
 
-        // --- STATE 1: FUTURE EVENT ---
-        if (diffMs > 0) {
-            if (isTimerOn) {
-                // Timer ON: Show Countdown
-                const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
-                
-                const formattedM = minutes.toString().padStart(2, '0');
-                const formattedS = seconds.toString().padStart(2, '0');
-                
-                el.innerText = hours > 0 
-                    ? `${hours}h ${formattedM}m ${formattedS}s` 
+            // 2. Estimated Spawn (TargetTime + 2.5 hours)
+            // 2.5 hours = 2 hours and 30 minutes = 9,000,000 milliseconds
+            const spawnDate = new Date(targetDate.getTime() + (2.5 * 60 * 60 * 1000));
+            const diffSpawn = spawnDate - now;
+
+            if (diffSpawn > 0) {
+                const spawnH = Math.floor(diffSpawn / (1000 * 60 * 60));
+                const spawnM = Math.floor((diffSpawn % (1000 * 60 * 60)) / (1000 * 60));
+                const spawnS = Math.floor((diffSpawn % (1000 * 60)) / 1000);
+
+                const formattedM = spawnM.toString().padStart(2, '0');
+                const formattedS = spawnS.toString().padStart(2, '0');
+
+                countdownEl.innerText = spawnH > 0 
+                    ? `${spawnH}h ${formattedM}m ${formattedS}s` 
                     : `${formattedM}m ${formattedS}s`;
             } else {
-                // Timer OFF: Show Announcement Time
-                el.innerText = `Announcement in: ${targetTimeStr}`;
+                // If the 2.5 hours have passed, highlight it!
+                countdownEl.innerText = `Spawning / Active`;
+                countdownEl.classList.add('spawning');
             }
-            
-        // --- STATE 2: SPAWNING (Between 0 and 5 minutes after Target Time) ---
-        } else if (diffMs <= 0 && diffMs > -300000) { 
-            // -300000ms is exactly -5 minutes. We add it to 5 mins (300000) to get remaining time
-            const spawnRemainingMs = 300000 + diffMs; 
-            
-            const minutes = Math.floor((spawnRemainingMs % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((spawnRemainingMs % (1000 * 60)) / 1000);
-            
-            const formattedM = minutes.toString().padStart(2, '0');
-            const formattedS = seconds.toString().padStart(2, '0');
 
-            el.innerText = `Spawning in: ${formattedM}m ${formattedS}s`;
-            el.classList.add('spawning'); // This class triggers the red CSS
-            
-        // --- STATE 3: PAST EVENT (More than 5 minutes after Target Time) ---
+        // ==========================================
+        //         REGULAR BOSS LOGIC
+        // ==========================================
         } else {
-            el.innerText = `Spawned`;
-            cardElement.classList.add('dimmed'); // Greys out the whole card
+            const diffMs = targetDate - now;
+
+            if (diffMs > 0) {
+                if (isTimerOn) {
+                    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+                    
+                    const formattedM = minutes.toString().padStart(2, '0');
+                    const formattedS = seconds.toString().padStart(2, '0');
+                    
+                    countdownEl.innerText = hours > 0 
+                        ? `${hours}h ${formattedM}m ${formattedS}s` 
+                        : `${formattedM}m ${formattedS}s`;
+                } else {
+                    countdownEl.innerText = `Announcement in: ${targetTimeStr}`;
+                }
+            } else if (diffMs <= 0 && diffMs > -300000) { 
+                const spawnRemainingMs = 300000 + diffMs; 
+                const minutes = Math.floor((spawnRemainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((spawnRemainingMs % (1000 * 60)) / 1000);
+                
+                countdownEl.innerText = `Spawning in: ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+                countdownEl.classList.add('spawning');
+            } else {
+                countdownEl.innerText = `Spawned`;
+                card.classList.add('dimmed'); 
+            }
         }
     });
 }
