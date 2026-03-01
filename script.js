@@ -1,17 +1,29 @@
 const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtRlBFHRViiLrjzmlEvxgI8-1UNwfrJWJU7fsej4eO6dLOEEzozvd_03KmgWhAIZonrzb2QupMcvVK/pub?gid=0&single=true&output=csv";
 
 document.addEventListener("DOMContentLoaded", () => {
+    // --- 1. LOAD SAVED COLOR (If it exists) ---
+    const savedColor = localStorage.getItem('neoTimerThemeColor');
+    if (savedColor) {
+        document.documentElement.style.setProperty('--accent-color', savedColor);
+    }
+
+    // --- 2. COLOR PICKER LOGIC ---
     const colorDots = document.querySelectorAll('.color-dot');
     colorDots.forEach(dot => {
         dot.addEventListener('click', (e) => {
             const selectedColor = e.target.getAttribute('data-color');
             document.documentElement.style.setProperty('--accent-color', selectedColor);
+            
+            // --- SAVE NEW COLOR TO LOCAL STORAGE ---
+            localStorage.setItem('neoTimerThemeColor', selectedColor);
         });
     });
 
+    // --- 3. TIMER TOGGLE ---
     const timerToggle = document.getElementById('timer-toggle');
     if (timerToggle) { timerToggle.addEventListener('change', updateTimers); }
 
+    // --- 4. FETCH DATA ---
     Papa.parse(sheetUrl, {
         download: true,
         header: true,
@@ -71,20 +83,16 @@ function buildDashboard(data) {
             container.appendChild(card);
         });
 
-        // --- UPDATED: Inject the Collapsible Dropdown for ALL Monarch Times ---
+        // Inject the Collapsible Dropdown for ALL Monarch Times
         if (region.toLowerCase() === 'monarch') {
             const details = document.createElement('details');
             details.className = 'monarch-dropdown';
             
             let listHTML = '';
             
-            // Get ALL Monarch data from the full spreadsheet, not just today's
             const allMonarchBosses = data.filter(row => row.Region && row.Region.toLowerCase() === 'monarch');
-            
-            // Map the days to numbers so we can sort them chronologically (Monday -> Sunday)
             const daysOfWeek = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7 };
             
-            // Sort by Day first, then by Target Time
             allMonarchBosses.sort((a, b) => {
                 if (daysOfWeek[a.Weekday] !== daysOfWeek[b.Weekday]) {
                     return daysOfWeek[a.Weekday] - daysOfWeek[b.Weekday];
@@ -92,7 +100,6 @@ function buildDashboard(data) {
                 return a.TargetTime.localeCompare(b.TargetTime);
             });
             
-            // Build the list HTML with "Weekday, BossName"
             allMonarchBosses.forEach(b => {
                 listHTML += `<li><strong>${b.Weekday}, ${b.BossName}</strong> <span>${b.TargetTime}</span></li>`;
             });
