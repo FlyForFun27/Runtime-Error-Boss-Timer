@@ -26,10 +26,38 @@ body {
     margin-bottom: 30px;
 }
 
+.header-left {
+    flex: 1;
+}
+
 .logo-text {
     color: var(--accent-color);
     margin: 0;
     font-size: 24px;
+}
+
+.reset-timers {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.reset-line span {
+    color: var(--accent-color);
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.header-controls {
+    flex: 1;
+    display: flex;
+    justify-content: flex-end; /* Pushes controls to the far right */
+    align-items: center;
+    gap: 20px;
 }
 
 .header-controls {
