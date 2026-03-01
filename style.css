@@ -165,3 +165,15 @@ input:checked + .slider:before { transform: translateX(16px); }
 .boss-card.dimmed .countdown {
     color: var(--text-muted);
 }
+
+/* Red warning state for the 5-minute spawn window */
+.countdown.spawning {
+    color: #ff3333 !important; /* Bright Red */
+    animation: pulse 1.5s infinite; /* Optional: adds a subtle heartbeat effect */
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
