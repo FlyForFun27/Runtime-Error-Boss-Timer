@@ -1,6 +1,6 @@
 /* Default accent color set to your Neon Magenta */
 :root {
-    --accent-color: #ff00ee; 
+    --accent-color: #4cc9f0; /* New Default Color */
     --bg-dark: #111111;
     --card-bg: #1a1a1a;
     --card-inner: #111111;
