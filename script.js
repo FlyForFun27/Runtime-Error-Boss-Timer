@@ -1,83 +1,152 @@
 const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtRlBFHRViiLrjzmlEvxgI8-1UNwfrJWJU7fsej4eO6dLOEEzozvd_03KmgWhAIZonrzb2QupMcvVK/pub?gid=0&single=true&output=csv";
 
-function tick() {
-    const now = new Date();
-    // Convert current time to total seconds from midnight
-    const nowTotalSec = (now.getHours() * 3600) + (now.getMinutes() * 60) + now.getSeconds();
-    
-    // 1. Update Top Clock
-    document.getElementById('top-clock').innerText = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+document.addEventListener("DOMContentLoaded", () => {
+    // Color Picker Logic
+    const colorDots = document.querySelectorAll('.color-dot');
+    colorDots.forEach(dot => {
+        dot.addEventListener('click', (e) => {
+            const selectedColor = e.target.getAttribute('data-color');
+            document.documentElement.style.setProperty('--accent-color', selectedColor);
+        });
+    });
 
-    // 2. Update Resets (6:00 AM = 21600 seconds)
-    updateResetElement('daily-reset', 21600, nowTotalSec);
+    const timerToggle = document.getElementById('timer-toggle');
+    if (timerToggle) { timerToggle.addEventListener('change', updateTimers); }
 
-    // 3. Update Boss Cards
-    document.querySelectorAll('.boss-card').forEach(card => {
-        const targetSec = parseInt(card.dataset.targetSec);
-        const countdownEl = card.querySelector('.countdown');
-        
-        const diff = targetSec - nowTotalSec;
-
-        if (diff > 0) {
-            // Future: Standard Countdown
-            countdownEl.innerText = formatTime(diff);
-            card.style.opacity = "1";
-        } else if (diff <= 0 && diff > -300) {
-            // Spawning: 5 minute window
-            countdownEl.innerText = "Spawning: " + formatTime(300 + diff);
-            countdownEl.style.color = "var(--accent-color)";
-        } else {
-            // Past
-            countdownEl.innerText = "Spawned";
-            card.style.opacity = "0.5";
+    // Fetch CSV Data
+    Papa.parse(sheetUrl, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            buildDashboard(results.data);
+            setInterval(updateTimers, 1000);
+            updateTimers(); 
         }
     });
+
+    setInterval(updateTopClock, 1000);
+    updateTopClock();
+});
+
+function updateTopClock() {
+    const now = new Date();
+    document.getElementById('top-clock').innerText = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
-function updateResetElement(id, resetSec, nowSec) {
-    let diff = resetSec - nowSec;
-    if (diff <= 0) diff += 86400; // Wrap to next day
-    document.getElementById(id).innerText = formatTime(diff);
-}
-
-function formatTime(seconds) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return h > 0 ? `${h}h ${m}m ${s}s` : `${m}m ${s}s`;
-}
-
-// --- Setup & CSV Logic ---
-function renderDashboard(data) {
+function buildDashboard(data) {
     const grid = document.getElementById('timers-grid');
-    grid.innerHTML = '';
+    grid.innerHTML = ''; 
     const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
-    
-    data.filter(row => row.Weekday === today).forEach(boss => {
-        const timeParts = boss.TargetTime.split(':');
-        const h = parseInt(timeParts);
-        const m = parseInt(timeParts);
-        const targetTotalSec = (h * 3600) + (m * 60);
+    const todaysData = data.filter(row => row.Weekday === today);
+    const activeRegions = [...new Set(todaysData.map(row => row.Region))];
 
-        const card = document.createElement('div');
-        card.className = 'boss-card';
-        card.dataset.targetSec = targetTotalSec;
-        card.innerHTML = `
-            <div class="boss-name">${boss.BossName}</div>
-            <div class="boss-time">${boss.TargetTime}</div>
-            <div class="countdown">--</div>
-        `;
-        grid.appendChild(card);
+    activeRegions.forEach(region => {
+        const col = document.createElement('div');
+        col.className = 'region-column';
+        // Add an inner container specifically for sorting the cards easily
+        col.innerHTML = `<h3>${region.toUpperCase()}</h3><div class="card-container"></div>`;
+        
+        const container = col.querySelector('.card-container');
+        const regionBosses = todaysData.filter(row => row.Region === region);
+        
+        regionBosses.forEach(boss => {
+            const card = document.createElement('div');
+            card.className = 'boss-card';
+            card.dataset.target = boss.TargetTime; // Store time for sorting
+
+            if (region.toLowerCase() === 'monarch') {
+                card.classList.add('monarch-card');
+                card.innerHTML = `
+                    <p class="boss-name">${boss.BossName}</p>
+                    <p class="time-since-kill">Time since kill: <span class="kill-timer" data-time="${boss.TargetTime}">--</span></p>
+                    <div class="countdown-wrapper">
+                        <div class="estimated-label">ESTIMATED SPAWN IN</div>
+                        <div class="countdown" data-time="${boss.TargetTime}">--</div>
+                    </div>`;
+            } else {
+                card.innerHTML = `
+                    <p class="boss-name">${boss.BossName}</p>
+                    <p class="boss-time">Time: ${boss.TargetTime}</p>
+                    <div class="countdown-wrapper"><div class="countdown" data-time="${boss.TargetTime}">--</div></div>`;
+            }
+            container.appendChild(card);
+        });
+        grid.appendChild(col);
     });
 }
 
-// Initialize
-Papa.parse(sheetUrl, {
-    download: true,
-    header: true,
-    complete: (results) => {
-        renderDashboard(results.data);
-        setInterval(tick, 1000);
-        tick();
-    }
-});
+function updateTimers() {
+    const now = new Date(); 
+    const isTimerOn = document.getElementById('timer-toggle').checked;
+
+    document.querySelectorAll('.boss-card').forEach(card => {
+        const isMonarch = card.classList.contains('monarch-card');
+        const countdownEl = card.querySelector('.countdown');
+        const targetTimeStr = card.dataset.target;
+        
+        const timeParts = targetTimeStr.split(':');
+        const targetDate = new Date();
+        targetDate.setHours(parseInt(timeParts), parseInt(timeParts), 0, 0);
+
+        card.classList.remove('dimmed');
+        countdownEl.classList.remove('spawning');
+
+        if (isMonarch) {
+            const killTimerEl = card.querySelector('.kill-timer');
+            let diffKill = now - targetDate;
+            killTimerEl.innerText = formatDuration(diffKill >= 0 ? diffKill : 0);
+
+            const spawnDate = new Date(targetDate.getTime() + (2.5 * 60 * 60 * 1000));
+            const diffSpawn = spawnDate - now;
+
+            if (diffSpawn > 0) {
+                countdownEl.innerText = formatDuration(diffSpawn);
+                card.dataset.priority = "1"; // Upcoming
+            } else {
+                countdownEl.innerText = `In Window`;
+                countdownEl.classList.add('spawning');
+                card.dataset.priority = "0"; // Highest priority
+            }
+        } else {
+            const diffMs = targetDate - now;
+            if (diffMs > 0) {
+                countdownEl.innerText = isTimerOn ? formatDuration(diffMs) : `Announcement at: ${targetTimeStr}`;
+                card.dataset.priority = "1"; // Upcoming
+            } else if (diffMs <= 0 && diffMs > -300000) { 
+                countdownEl.innerText = `Spawning in: ${formatDuration(300000 + diffMs)}`;
+                countdownEl.classList.add('spawning');
+                card.dataset.priority = "0"; // Highest Priority
+            } else {
+                countdownEl.innerText = `Spawned`;
+                card.classList.add('dimmed');
+                card.dataset.priority = "2"; // Lowest Priority (Moves to bottom)
+            }
+        }
+    });
+
+    // --- SORTING LOGIC ---
+    document.querySelectorAll('.card-container').forEach(container => {
+        const cards = Array.from(container.children);
+        cards.sort((a, b) => {
+            // Sort by priority first (0, then 1, then 2)
+            if (a.dataset.priority !== b.dataset.priority) {
+                return a.dataset.priority - b.dataset.priority;
+            }
+            // If they have the same priority, sort them by target time (earliest first)
+            return a.dataset.target.localeCompare(b.dataset.target);
+        });
+        // Re-append to the DOM in the sorted order
+        cards.forEach(card => container.appendChild(card));
+    });
+}
+
+// Helper function to keep formatting clean
+function formatDuration(ms) {
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return h > 0 
+        ? `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s` 
+        : `${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
+}
