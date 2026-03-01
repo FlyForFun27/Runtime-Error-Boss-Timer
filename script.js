@@ -1,29 +1,43 @@
+// --- CONFIGURATION ---
 const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtRlBFHRViiLrjzmlEvxgI8-1UNwfrJWJU7fsej4eO6dLOEEzozvd_03KmgWhAIZonrzb2QupMcvVK/pub?gid=0&single=true&output=csv";
 
+// SET TO 'true' IF YOUR SHEET TIMES ARE SERVER TIME (UTC)
+// SET TO 'false' IF YOUR SHEET TIMES ARE YOUR LOCAL TIME
+const USE_UTC_TIME = false; 
+
+// --- HELPER FUNCTION: Safely extracts Hours, Minutes, Seconds ---
+function parseTimeStr(timeStr) {
+    if (!timeStr) return { h: 0, m: 0, s: 0 };
+    const parts = timeStr.split(':');
+    return {
+        h: parseInt(parts, 10) || 0,
+        m: parseInt(parts, 10) || 0,
+        s: parts ? parseInt(parts, 10) : 0
+    };
+}
+
 document.addEventListener("DOMContentLoaded", () => {
-    // --- 1. LOAD SAVED PREFERENCES (Color & Toggle) ---
+    // 1. Load Saved Theme Color
     const savedColor = localStorage.getItem('neoTimerThemeColor');
     if (savedColor) {
         document.documentElement.style.setProperty('--accent-color', savedColor);
     }
 
+    // 2. Load Saved Toggle State
     const timerToggle = document.getElementById('timer-toggle');
     const savedToggle = localStorage.getItem('neoTimerToggleState');
     if (timerToggle) {
-        // Restore previous toggle state if it exists
         if (savedToggle !== null) {
             timerToggle.checked = savedToggle === 'true';
         }
-        // Save state whenever it changes
         timerToggle.addEventListener('change', (e) => {
             localStorage.setItem('neoTimerToggleState', e.target.checked);
             updateTimers();
         });
     }
 
-    // --- 2. COLOR PICKER LOGIC ---
-    const colorDots = document.querySelectorAll('.color-dot');
-    colorDots.forEach(dot => {
+    // 3. Color Picker Logic
+    document.querySelectorAll('.color-dot').forEach(dot => {
         dot.addEventListener('click', (e) => {
             const selectedColor = e.target.getAttribute('data-color');
             document.documentElement.style.setProperty('--accent-color', selectedColor);
@@ -31,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // --- 3. FETCH DATA ---
+    // 4. Fetch Data
     Papa.parse(sheetUrl, {
         download: true,
         header: true,
@@ -43,11 +57,10 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // --- 4. START TOP CLOCKS ---
+    // 5. Start Header Clocks
     setInterval(updateTopClock, 1000);
-    updateTopClock();
-
     setInterval(updateResetTimers, 1000);
+    updateTopClock();
     updateResetTimers();
 });
 
@@ -58,44 +71,41 @@ function updateTopClock() {
 
 function updateResetTimers() {
     const now = new Date();
-
-    // --- Daily Reset (Every day at 6:00 AM Local) ---
     const dailyReset = new Date();
-    dailyReset.setHours(6, 0, 0, 0);
+    const weeklyReset = new Date();
+
+    if (USE_UTC_TIME) {
+        dailyReset.setUTCHours(6, 0, 0, 0);
+        weeklyReset.setUTCHours(6, 0, 0, 0);
+    } else {
+        dailyReset.setHours(6, 0, 0, 0);
+        weeklyReset.setHours(6, 0, 0, 0);
+    }
     
-    // If it is past 6:00 AM, aim for tomorrow
+    // Daily Math
     if (now >= dailyReset) {
         dailyReset.setDate(dailyReset.getDate() + 1);
     }
-    
     const dDiff = dailyReset - now;
-    const dH = Math.floor(dDiff / (1000 * 60 * 60));
-    const dM = Math.floor((dDiff % (1000 * 60 * 60)) / (1000 * 60));
-    const dS = Math.floor((dDiff % (1000 * 60)) / 1000);
-    
-    document.getElementById('daily-reset').innerText = 
-        `${dH}h ${dM.toString().padStart(2, '0')}m ${dS.toString().padStart(2, '0')}s`;
+    const dH = Math.floor(dDiff / 3600000);
+    const dM = Math.floor((dDiff % 3600000) / 60000);
+    const dS = Math.floor((dDiff % 60000) / 1000);
+    document.getElementById('daily-reset').innerText = `${dH}h ${dM.toString().padStart(2, '0')}m ${dS.toString().padStart(2, '0')}s`;
 
-    // --- Weekly Reset (Every Wednesday at 6:00 AM Local) ---
-    const weeklyReset = new Date();
-    weeklyReset.setHours(6, 0, 0, 0);
-    
+    // Weekly Math (Wednesday)
     let daysUntilWed = (3 - weeklyReset.getDay() + 7) % 7;
-    // If it's Wednesday but past 6:00 AM, aim for next week
     if (daysUntilWed === 0 && now >= weeklyReset) {
         daysUntilWed = 7;
     }
     weeklyReset.setDate(weeklyReset.getDate() + daysUntilWed);
     
     const wDiff = weeklyReset - now;
-    const wD = Math.floor(wDiff / (1000 * 60 * 60 * 24));
-    const wH = Math.floor((wDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const wM = Math.floor((wDiff % (1000 * 60 * 60)) / (1000 * 60));
-    const wS = Math.floor((wDiff % (1000 * 60)) / 1000);
-
+    const wD = Math.floor(wDiff / 86400000);
+    const wH = Math.floor((wDiff % 86400000) / 3600000);
+    const wM = Math.floor((wDiff % 3600000) / 60000);
+    const wS = Math.floor((wDiff % 60000) / 1000);
     const daysStr = wD > 0 ? `${wD}d ` : '';
-    document.getElementById('weekly-reset').innerText = 
-        `${daysStr}${wH}h ${wM.toString().padStart(2, '0')}m ${wS.toString().padStart(2, '0')}s`;
+    document.getElementById('weekly-reset').innerText = `${daysStr}${wH}h ${wM.toString().padStart(2, '0')}m ${wS.toString().padStart(2, '0')}s`;
 }
 
 function buildDashboard(data) {
@@ -109,18 +119,13 @@ function buildDashboard(data) {
         const col = document.createElement('div');
         col.className = 'region-column';
         col.innerHTML = `<h3>${region.toUpperCase()}</h3><div class="card-container"></div>`;
-        
         const container = col.querySelector('.card-container');
-        const regionBosses = todaysData.filter(row => row.Region === region);
         
-        regionBosses.forEach(boss => {
+        todaysData.filter(row => row.Region === region).forEach(boss => {
             const card = document.createElement('div');
             card.className = 'boss-card';
-            
-            const fullTime = boss.TargetTime; // Expecting "HH:MM:SS"
+            const fullTime = boss.TargetTime; 
             card.dataset.target = fullTime; 
-            
-            // Trim down to "HH:MM" for clean UI display
             const displayTime = fullTime.length >= 5 ? fullTime.substring(0, 5) : fullTime;
 
             if (region.toLowerCase() === 'monarch') {
@@ -141,20 +146,16 @@ function buildDashboard(data) {
             container.appendChild(card);
         });
 
-        // --- Monarch Dropdown Inject ---
+        // Monarch Dropdown
         if (region.toLowerCase() === 'monarch') {
             const details = document.createElement('details');
             details.className = 'monarch-dropdown';
-            
             let listHTML = '';
-            
             const allMonarchBosses = data.filter(row => row.Region && row.Region.toLowerCase() === 'monarch');
             const daysOfWeek = { "Monday": 1, "Tuesday": 2, "Wednesday": 3, "Thursday": 4, "Friday": 5, "Saturday": 6, "Sunday": 7 };
             
             allMonarchBosses.sort((a, b) => {
-                if (daysOfWeek[a.Weekday] !== daysOfWeek[b.Weekday]) {
-                    return daysOfWeek[a.Weekday] - daysOfWeek[b.Weekday];
-                }
+                if (daysOfWeek[a.Weekday] !== daysOfWeek[b.Weekday]) return daysOfWeek[a.Weekday] - daysOfWeek[b.Weekday];
                 return a.TargetTime.localeCompare(b.TargetTime);
             });
             
@@ -163,26 +164,23 @@ function buildDashboard(data) {
                 listHTML += `<li><strong>${b.Weekday}, ${b.BossName}</strong> <span>${dropDisplayTime}</span></li>`;
             });
 
-            details.innerHTML = `
-                <summary>View All Logged Times</summary>
-                <ul>${listHTML}</ul>
-            `;
+            details.innerHTML = `<summary>View All Logged Times</summary><ul>${listHTML}</ul>`;
             col.appendChild(details); 
         }
-
         grid.appendChild(col);
     });
 }
 
 function updateTimers() {
     const now = new Date(); 
-    const isTimerOn = document.getElementById('timer-toggle').checked;
+    const timerToggleEl = document.getElementById('timer-toggle');
+    const isTimerOn = timerToggleEl ? timerToggleEl.checked : true;
 
     document.querySelectorAll('.boss-card').forEach(card => {
         const isMonarch = card.classList.contains('monarch-card');
         const countdownEl = card.querySelector('.countdown');
         const targetTimeStr = card.dataset.target;
-
+        
         // --- BULLETPROOF TIME PARSING ---
         const t = parseTimeStr(targetTimeStr);
         const targetDate = new Date();
@@ -190,7 +188,7 @@ function updateTimers() {
         if (USE_UTC_TIME) {
             targetDate.setUTCHours(t.h, t.m, t.s, 0);
         } else {
-            targetDate.setHours(t.h, t.m, t.s, 0); // THIS IS THE CRITICAL LINE
+            targetDate.setHours(t.h, t.m, t.s, 0);
         }
 
         card.classList.remove('dimmed');
@@ -201,16 +199,16 @@ function updateTimers() {
             let diffKill = now - targetDate;
             killTimerEl.innerText = formatDuration(diffKill >= 0 ? diffKill : 0);
 
-            const spawnDate = new Date(targetDate.getTime() + (2.5 * 60 * 60 * 1000));
+            const spawnDate = new Date(targetDate.getTime() + (2.5 * 3600000));
             const diffSpawn = spawnDate - now;
 
             if (diffSpawn > 0) {
                 countdownEl.innerText = formatDuration(diffSpawn);
-                card.dataset.priority = "1"; // Upcoming
+                card.dataset.priority = "1"; 
             } else {
                 countdownEl.innerText = `In Window`;
                 countdownEl.classList.add('spawning');
-                card.dataset.priority = "0"; // Highest priority
+                card.dataset.priority = "0"; 
             }
         } else {
             const diffMs = targetDate - now;
@@ -218,20 +216,20 @@ function updateTimers() {
 
             if (diffMs > 0) {
                 countdownEl.innerText = isTimerOn ? formatDuration(diffMs) : `Announcement at: ${displayTimeStr}`;
-                card.dataset.priority = "1"; // Upcoming
+                card.dataset.priority = "1"; 
             } else if (diffMs <= 0 && diffMs > -300000) { 
                 countdownEl.innerText = `Spawning in: ${formatDuration(300000 + diffMs)}`;
                 countdownEl.classList.add('spawning');
-                card.dataset.priority = "0"; // Highest Priority
+                card.dataset.priority = "0"; 
             } else {
                 countdownEl.innerText = `Spawned`;
                 card.classList.add('dimmed');
-                card.dataset.priority = "2"; // Drops to bottom
+                card.dataset.priority = "2"; 
             }
         }
     });
 
-    // --- SORTING LOGIC ---
+    // Sort Cards
     document.querySelectorAll('.card-container').forEach(container => {
         const cards = Array.from(container.children);
         cards.sort((a, b) => {
