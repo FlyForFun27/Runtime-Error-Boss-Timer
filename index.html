@@ -8,12 +8,27 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-    <header class="top-bar">
-        <h1 class="logo-text">Neo Boss Timers</h1>
-        
+     <header class="top-bar">
+        <div class="header-left">
+            <h1 class="logo-text">Neo Boss Timers</h1>
+        </div>
+    
+        <div class="reset-timers">
+            <div class="reset-line">Daily Reset: <span id="daily-reset">--h --m --s</span></div>
+            <div class="reset-line">Weekly Reset: <span id="weekly-reset">--d --h --m --s</span></div>
+        </div>
+
         <div class="header-controls">
             <div class="color-picker">
-                <div class="color-dot" data-color="#9d4edd" style="background: #9d4edd;"></div> <div class="color-dot" data-color="#4cc9f0" style="background: #4cc9f0;"></div> <div class="color-dot" data-color="#f72585" style="background: #f72585;"></div> <div class="color-dot" data-color="#4ade80" style="background: #4ade80;"></div> <div class="color-dot" data-color="#fbbf24" style="background: #fbbf24;"></div> <div class="color-dot" data-color="#f87171" style="background: #f87171;"></div> <div class="color-dot" data-color="#818cf8" style="background: #818cf8;"></div> <div class="color-dot" data-color="#d1d1d1" style="background: #d1d1d1;"></div> </div>
+                <div class="color-dot" data-color="#9d4edd" style="background: #9d4edd;"></div>
+                <div class="color-dot" data-color="#4cc9f0" style="background: #4cc9f0;"></div>
+                <div class="color-dot" data-color="#f72585" style="background: #f72585;"></div>
+                <div class="color-dot" data-color="#4ade80" style="background: #4ade80;"></div>
+                <div class="color-dot" data-color="#fbbf24" style="background: #fbbf24;"></div>
+                <div class="color-dot" data-color="#f87171" style="background: #f87171;"></div>
+                <div class="color-dot" data-color="#818cf8" style="background: #818cf8;"></div>
+                <div class="color-dot" data-color="#d1d1d1" style="background: #d1d1d1;"></div>
+            </div>
 
             <div class="toggle-container">
                 <span class="toggle-label">Timer</span>
