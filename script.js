@@ -182,15 +182,16 @@ function updateTimers() {
         const isMonarch = card.classList.contains('monarch-card');
         const countdownEl = card.querySelector('.countdown');
         const targetTimeStr = card.dataset.target;
-        
-        // --- PROPER HH:MM:SS PARSING ---
-        const timeParts = targetTimeStr.split(':');
-        const targetHours = parseInt(timeParts, 10);
-        const targetMinutes = parseInt(timeParts, 10);
-        const targetSeconds = timeParts ? parseInt(timeParts, 10) : 0;
-        
+
+        // --- BULLETPROOF TIME PARSING ---
+        const t = parseTimeStr(targetTimeStr);
         const targetDate = new Date();
-        targetDate.setHours(targetHours, targetMinutes, targetSeconds, 0);
+        
+        if (USE_UTC_TIME) {
+            targetDate.setUTCHours(t.h, t.m, t.s, 0);
+        } else {
+            targetDate.setHours(t.h, t.m, t.s, 0); // THIS IS THE CRITICAL LINE
+        }
 
         card.classList.remove('dimmed');
         countdownEl.classList.remove('spawning');
