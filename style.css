@@ -66,3 +66,14 @@ body {
     padding: 10px;
     border-radius: 3px;
 }
+
+/* Color change for bosses that have already spawned */
+.boss-card.dimmed {
+    opacity: 0.4;
+    border-left: 2px solid #444; /* Changes the neon blue border to dark grey */
+}
+
+.boss-card.dimmed .countdown {
+    color: #777; /* Dims the bright blue text */
+    background-color: transparent;
+}
