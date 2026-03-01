@@ -1,6 +1,5 @@
-/* CSS Variables for easy color switching */
 :root {
-    --accent-color: #00ccff; /* Default Neon Blue */
+    --accent-color: #4cc9f0; /* New Default Color */
     --bg-dark: #111111;
     --card-bg: #1a1a1a;
     --card-inner: #111111;
@@ -164,4 +163,45 @@ input:checked + .slider:before { transform: translateX(16px); }
 }
 .boss-card.dimmed .countdown {
     color: var(--text-muted);
+}
+
+/* Red warning state - No animation to keep it clean */
+.countdown.spawning {
+    color: #ff0000 !important;
+    font-weight: 800;
+}
+
+/* --- Monarch Specific Styles --- */
+.time-since-kill {
+    color: var(--accent-color);
+    font-size: 12px;
+    margin: 0 0 15px 0;
+}
+
+.estimated-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    letter-spacing: 1px;
+}
+
+/* Hide ONLY the countdown box and Monarch extras, KEEP the base time */
+.boss-card.dimmed .countdown-wrapper, 
+.boss-card.dimmed .time-since-kill,
+.boss-card.dimmed .estimated-label {
+    display: none;
+}
+
+/* Style the text for the compressed state */
+.boss-card.dimmed .boss-name {
+    margin: 0 0 4px 0; /* Tiny gap between name and time */
+    font-size: 14px;
+    color: #888;
+}
+
+.boss-card.dimmed .boss-time {
+    margin: 0;
+    font-size: 12px;
+    color: #666;
 }
