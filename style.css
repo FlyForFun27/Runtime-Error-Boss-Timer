@@ -273,8 +273,28 @@ input:checked + .slider:before { transform: translateX(16px); }
     margin-top: 10px;
     border-top: 1px solid #333;
     padding-top: 10px;
+    padding-right: 10px; /* Creates a buffer zone so the text isn't covered */
     max-height: 200px;
     overflow-y: auto;
+}
+
+/* --- Custom Dark Theme Scrollbar --- */
+.schedule-list::-webkit-scrollbar {
+    width: 6px; /* Makes the scrollbar sleek and thin */
+}
+
+.schedule-list::-webkit-scrollbar-track {
+    background: var(--card-inner); 
+    border-radius: 4px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb {
+    background: #444; 
+    border-radius: 4px;
+}
+
+.schedule-list::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color); /* Matches your active theme color on hover */
 }
 
 .schedule-row {
