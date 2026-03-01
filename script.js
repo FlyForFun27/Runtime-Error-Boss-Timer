@@ -180,6 +180,9 @@ function updateTimers() {
     const timerToggleEl = document.getElementById('timer-toggle');
     const isTimerOn = timerToggleEl ? timerToggleEl.checked : true;
 
+    // Get current seconds from the start of the day (0 to 86399)
+    const currentSecondsSinceMidnight = (now.getHours() * 3600) + (now.getMinutes() * 60) + now.getSeconds();
+
     document.querySelectorAll('.boss-card').forEach(card => {
         const isMonarch = card.classList.contains('monarch-card');
         const countdownEl = card.querySelector('.countdown');
@@ -187,33 +190,34 @@ function updateTimers() {
         const targetTimeStr = card.dataset.target;
         
         const t = parseTimeStr(targetTimeStr);
-        const targetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), t.h, t.m, 0, 0);
+        // Target seconds from start of day
+        const targetSecondsSinceMidnight = (t.h * 3600) + (t.m * 60);
 
-        // DEBUG TEXT
+        // DEBUG OVERRIDE
         if (debugEl) {
-            const deviceTime = now.getHours().toString().padStart(2,'0') + ":" + now.getMinutes().toString().padStart(2,'0') + ":" + now.getSeconds().toString().padStart(2,'0');
-            const targetTime = t.h.toString().padStart(2,'0') + ":" + t.m.toString().padStart(2,'0') + ":00";
-            debugEl.innerText = `Device: ${deviceTime} | Target: ${targetTime}`;
+            debugEl.innerText = `Now: ${currentSecondsSinceMidnight}s | Target: ${targetSecondsSinceMidnight}s`;
         }
 
         card.classList.remove('dimmed');
         countdownEl.classList.remove('spawning');
 
         if (isMonarch) {
-            // Monarch Logic: If target is in the future, it was likely from "yesterday's" late kill
-            if (targetDate > now) {
-                targetDate.setDate(targetDate.getDate() - 1);
-            }
-            
             const killTimerEl = card.querySelector('.kill-timer');
-            const diffKill = now - targetDate;
-            killTimerEl.innerText = formatDuration(diffKill >= 0 ? diffKill : 0);
+            
+            // Logic: How long has it been since the recorded kill?
+            // If target is 1000 and now is 5000, diff is 4000.
+            // If target is 80000 (late night) and now is 5000 (early morning), 
+            // we add a full day (86400) to bridge the gap.
+            let diffKillSec = currentSecondsSinceMidnight - targetSecondsSinceMidnight;
+            if (diffKillSec < -43200) diffKillSec += 86400; // Crossover fix
+            
+            killTimerEl.innerText = formatDuration(diffKillSec * 1000);
 
-            const spawnDate = new Date(targetDate.getTime() + (2.5 * 3600000));
-            const diffSpawn = spawnDate - now;
+            // Spawn is 2h 30m (9000 seconds) after kill
+            const spawnRemainingSec = 9000 - diffKillSec;
 
-            if (diffSpawn > 0) {
-                countdownEl.innerText = formatDuration(diffSpawn);
+            if (spawnRemainingSec > 0) {
+                countdownEl.innerText = formatDuration(spawnRemainingSec * 1000);
                 card.dataset.priority = "1"; 
             } else {
                 countdownEl.innerText = `In Window`;
@@ -222,20 +226,20 @@ function updateTimers() {
             }
         } else {
             // Standard Boss Logic
-            const diffMs = targetDate - now;
+            let diffSec = targetSecondsSinceMidnight - currentSecondsSinceMidnight;
             const displayTimeStr = targetTimeStr.length >= 5 ? targetTimeStr.substring(0, 5) : targetTimeStr;
 
-            if (diffMs > 0) {
-                // Future: Counting down
-                countdownEl.innerText = isTimerOn ? formatDuration(diffMs) : `Announcement at: ${displayTimeStr}`;
+            if (diffSec > 0) {
+                // Future
+                countdownEl.innerText = isTimerOn ? formatDuration(diffSec * 1000) : `Announcement at: ${displayTimeStr}`;
                 card.dataset.priority = "1"; 
-            } else if (diffMs <= 0 && diffMs > -300000) { 
-                // Currently Spawning (within 5 mins of target)
-                countdownEl.innerText = `Spawning in: ${formatDuration(300000 + diffMs)}`;
+            } else if (diffSec <= 0 && diffSec > -300) { 
+                // Currently Spawning (within 5 mins / 300s)
+                countdownEl.innerText = `Spawning in: ${formatDuration((300 + diffSec) * 1000)}`;
                 countdownEl.classList.add('spawning');
                 card.dataset.priority = "0"; 
             } else {
-                // Past: Dimmed
+                // Past
                 countdownEl.innerText = `Spawned`;
                 card.classList.add('dimmed');
                 card.dataset.priority = "2"; 
@@ -243,7 +247,7 @@ function updateTimers() {
         }
     });
 
-    // Re-sort cards based on priority
+    // Re-sort
     document.querySelectorAll('.card-container').forEach(container => {
         const cards = Array.from(container.children);
         cards.sort((a, b) => {
