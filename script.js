@@ -3,9 +3,9 @@ const sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtRlBFHRViiLr
 // Global Variables
 window.globalCsvData = null;
 window.currentDayOffset = null;
-window.notifiedBosses = new Set(); // Prevents sound from looping
+window.notifiedBosses = new Set(); 
 
-// The Ping Sound (Using a clean, free UI notification ping)
+// The Ping Sound 
 const alertAudio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); 
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -13,7 +13,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const savedColor = localStorage.getItem('neoTimerThemeColor');
     if (savedColor) document.documentElement.style.setProperty('--accent-color', savedColor);
 
-    // 2. Load Timer Toggle
+    // 2. Load Volume
+    const savedVolume = localStorage.getItem('neoTimerVolume');
+    if (savedVolume !== null) alertAudio.volume = parseFloat(savedVolume);
+
+    // 3. Load Timer Toggle
     const timerToggle = document.getElementById('timer-toggle');
     const savedToggle = localStorage.getItem('neoTimerToggleState');
     if (timerToggle) {
@@ -24,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 3. Load Sound Toggle
+    // 4. Load Sound Toggle
     const soundToggle = document.getElementById('sound-toggle');
     const savedSound = localStorage.getItem('neoTimerSoundState');
     if (soundToggle) {
@@ -32,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
         soundToggle.addEventListener('change', (e) => localStorage.setItem('neoTimerSoundState', e.target.checked));
     }
 
-    // 4. Color Picker
+    // 5. Color Picker
     document.querySelectorAll('.color-dot').forEach(dot => {
         dot.addEventListener('click', (e) => {
             const selectedColor = e.target.getAttribute('data-color');
@@ -41,10 +45,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // 5. Setup Settings Modal
+    // 6. Setup Settings Modal & Volume Slider
     const modal = document.getElementById('settings-modal');
     const cog = document.getElementById('settings-btn');
     const closeBtn = document.querySelector('.close-modal');
+    
+    const volSlider = document.getElementById('volume-slider');
+    const volDisplay = document.getElementById('volume-display');
+    const testBtn = document.getElementById('test-sound-btn');
+
+    if (volSlider) {
+        volSlider.value = alertAudio.volume;
+        volDisplay.innerText = Math.round(alertAudio.volume * 100) + '%';
+        
+        volSlider.addEventListener('input', (e) => {
+            const newVol = parseFloat(e.target.value);
+            alertAudio.volume = newVol;
+            volDisplay.innerText = Math.round(newVol * 100) + '%';
+            localStorage.setItem('neoTimerVolume', newVol);
+        });
+    }
+
+    if (testBtn) {
+        testBtn.addEventListener('click', () => {
+            alertAudio.currentTime = 0; // Reset to start if already playing
+            alertAudio.play().catch(e => console.log("Audio play blocked", e));
+        });
+    }
 
     cog.addEventListener('click', () => {
         populateSettings();
@@ -70,39 +97,35 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// --- SETTINGS POPULATOR ---
+// --- SETTINGS POPULATOR (REGIONS) ---
 function populateSettings() {
-    const list = document.getElementById('boss-alert-list');
+    const list = document.getElementById('region-alert-list');
     if (!window.globalCsvData) return;
     
-    // Grab every unique boss name
-    const bossNames = [...new Set(window.globalCsvData.map(b => b.BossName))].filter(Boolean).sort();
-    let mutedBosses = JSON.parse(localStorage.getItem('neoTimerMutedBosses')) || [];
+    const regionNames = [...new Set(window.globalCsvData.map(b => b.Region))].filter(Boolean).sort();
+    let mutedRegions = JSON.parse(localStorage.getItem('neoTimerMutedRegions')) || [];
 
-    list.innerHTML = bossNames.map(name => `
+    list.innerHTML = regionNames.map(name => `
         <div class="boss-alert-item">
             <span class="boss-alert-name">${name}</span>
             <label class="switch">
-                <input type="checkbox" data-boss="${name}" ${mutedBosses.includes(name) ? '' : 'checked'} class="boss-mute-toggle">
+                <input type="checkbox" data-region="${name}" ${mutedRegions.includes(name) ? '' : 'checked'} class="region-mute-toggle">
                 <span class="slider round"></span>
             </label>
         </div>
     `).join('');
 
-    // Listeners for the individual boss toggles
-    document.querySelectorAll('.boss-mute-toggle').forEach(toggle => {
+    document.querySelectorAll('.region-mute-toggle').forEach(toggle => {
         toggle.addEventListener('change', (e) => {
-            const bName = e.target.dataset.boss;
-            let currentMuted = JSON.parse(localStorage.getItem('neoTimerMutedBosses')) || [];
+            const rName = e.target.dataset.region;
+            let currentMuted = JSON.parse(localStorage.getItem('neoTimerMutedRegions')) || [];
             
             if (e.target.checked) {
-                // If checked, remove from muted list
-                currentMuted = currentMuted.filter(n => n !== bName);
+                currentMuted = currentMuted.filter(n => n !== rName);
             } else {
-                // If unchecked, add to muted list
-                if (!currentMuted.includes(bName)) currentMuted.push(bName);
+                if (!currentMuted.includes(rName)) currentMuted.push(rName);
             }
-            localStorage.setItem('neoTimerMutedBosses', JSON.stringify(currentMuted));
+            localStorage.setItem('neoTimerMutedRegions', JSON.stringify(currentMuted));
         });
     });
 }
@@ -185,10 +208,10 @@ function buildDashboard(data, offset) {
             const card = document.createElement('div');
             card.className = 'boss-card';
             
-            // MAP DATA SO TIMER CAN READ IT
             card.dataset.targetSec = boss.TargetSec; 
             card.dataset.targetTime = boss.TargetTime;
-            card.dataset.bossName = boss.BossName; // Added for the Sound Tracker
+            card.dataset.bossName = boss.BossName; 
+            card.dataset.region = boss.Region; 
 
             if (region.toLowerCase() === 'monarch') {
                 card.classList.add('monarch-card');
@@ -237,18 +260,17 @@ function updateTimers(nowSec, activeOffset) {
     const timerToggle = document.getElementById('timer-toggle');
     const isTimerOn = timerToggle ? timerToggle.checked : true;
     
-    // Get Audio States
     const soundToggle = document.getElementById('sound-toggle');
     const isGlobalSoundOn = soundToggle ? soundToggle.checked : false;
-    const mutedBosses = JSON.parse(localStorage.getItem('neoTimerMutedBosses')) || [];
+    const mutedRegions = JSON.parse(localStorage.getItem('neoTimerMutedRegions')) || [];
 
     document.querySelectorAll('.boss-card').forEach(card => {
         const isMonarch = card.classList.contains('monarch-card');
         const countdownEl = card.querySelector('.countdown');
         const targetSec = parseInt(card.dataset.targetSec, 10);
         const bName = card.dataset.bossName;
+        const regionName = card.dataset.region; 
         
-        // Create a unique ID so we only ping once per spawn
         const spawnId = `${bName}_${targetSec}_${activeOffset}`;
 
         card.classList.remove('dimmed');
@@ -265,14 +287,13 @@ function updateTimers(nowSec, activeOffset) {
             if (spawnIn > 0) {
                 countdownEl.innerText = formatDuration(spawnIn * 1000);
                 card.dataset.priority = "1";
-                window.notifiedBosses.delete(spawnId); // Reset tracking
+                window.notifiedBosses.delete(spawnId); 
             } else {
                 countdownEl.innerText = `In Window`;
                 countdownEl.classList.add('spawning');
                 card.dataset.priority = "0";
 
-                // Play Audio
-                if (isGlobalSoundOn && !mutedBosses.includes(bName) && !window.notifiedBosses.has(spawnId)) {
+                if (isGlobalSoundOn && !mutedRegions.includes(regionName) && !window.notifiedBosses.has(spawnId)) {
                     alertAudio.play().catch(e => console.log("Audio play blocked by browser."));
                     window.notifiedBosses.add(spawnId);
                 }
@@ -283,14 +304,13 @@ function updateTimers(nowSec, activeOffset) {
             if (diffSec > 0) {
                 countdownEl.innerText = isTimerOn ? formatDuration(diffSec * 1000) : `Announcement at: ${card.dataset.targetTime}`;
                 card.dataset.priority = "1";
-                window.notifiedBosses.delete(spawnId); // Reset tracking
+                window.notifiedBosses.delete(spawnId); 
             } else if (diffSec <= 0 && diffSec > -300) { 
                 countdownEl.innerText = `Spawning in: ${formatDuration((300 + diffSec) * 1000)}`;
                 countdownEl.classList.add('spawning');
                 card.dataset.priority = "0";
                 
-                // Play Audio
-                if (isGlobalSoundOn && !mutedBosses.includes(bName) && !window.notifiedBosses.has(spawnId)) {
+                if (isGlobalSoundOn && !mutedRegions.includes(regionName) && !window.notifiedBosses.has(spawnId)) {
                     alertAudio.play().catch(e => console.log("Audio play blocked by browser."));
                     window.notifiedBosses.add(spawnId);
                 }
@@ -302,7 +322,6 @@ function updateTimers(nowSec, activeOffset) {
         }
     });
 
-    // Auto-Sort
     document.querySelectorAll('.card-container').forEach(container => {
         const cards = Array.from(container.children);
         cards.sort((a, b) => {
