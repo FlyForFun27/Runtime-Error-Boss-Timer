@@ -386,3 +386,42 @@ input:checked + .slider:before { transform: translateX(16px); }
 .modal-body::-webkit-scrollbar-track { background: var(--card-inner); border-radius: 4px; }
 .modal-body::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
 .modal-body::-webkit-scrollbar-thumb:hover { background: var(--accent-color); }
+
+/* --- Volume Slider & Test Button --- */
+.volume-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.volume-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+#volume-slider {
+    width: 100%;
+    accent-color: var(--accent-color); /* Automatically matches your chosen color! */
+    cursor: pointer;
+}
+
+.test-btn {
+    background-color: transparent;
+    color: var(--accent-color);
+    border: 1px solid var(--accent-color);
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-weight: 600;
+    align-self: flex-start;
+    transition: background 0.2s, color 0.2s;
+}
+
+.test-btn:hover {
+    background-color: var(--accent-color);
+    color: var(--bg-dark);
+}
