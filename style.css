@@ -309,3 +309,80 @@ input:checked + .slider:before { transform: translateX(16px); }
 .schedule-row:last-child {
     border-bottom: none;
 }
+
+/* --- Settings Cog --- */
+.settings-cog {
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s, transform 0.3s ease;
+}
+
+.settings-cog:hover {
+    color: var(--accent-color);
+    transform: rotate(45deg); /* Cool spinning effect */
+}
+
+/* --- Modal Styles --- */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1000;
+    left: 0; top: 0; 
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    backdrop-filter: blur(3px); /* Blurs the background */
+}
+
+.modal-content {
+    background-color: var(--card-bg);
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid var(--accent-color);
+    width: 350px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+}
+
+.modal-header {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    margin-bottom: 10px; 
+    border-bottom: 1px solid #333; 
+    padding-bottom: 10px;
+}
+
+.modal-header h2 { margin: 0; font-size: 16px; color: var(--text-light); }
+
+.close-modal {
+    color: var(--text-muted); 
+    font-size: 24px; 
+    cursor: pointer;
+}
+
+.close-modal:hover { color: var(--text-light); }
+
+.boss-alert-item {
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center;
+    padding: 8px 0; 
+    border-bottom: 1px solid #222;
+}
+
+.boss-alert-item:last-child { border-bottom: none; }
+.boss-alert-name { font-size: 13px; color: var(--text-light); }
+
+.modal-body {
+    max-height: 50vh; 
+    overflow-y: auto; 
+    padding-right: 10px;
+}
+
+/* Modal Scrollbar */
+.modal-body::-webkit-scrollbar { width: 6px; }
+.modal-body::-webkit-scrollbar-track { background: var(--card-inner); border-radius: 4px; }
+.modal-body::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+.modal-body::-webkit-scrollbar-thumb:hover { background: var(--accent-color); }
