@@ -15,7 +15,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 2. Load Volume
     const savedVolume = localStorage.getItem('neoTimerVolume');
-    if (savedVolume !== null) alertAudio.volume = parseFloat(savedVolume);
+    if (savedVolume !== null) {
+        alertAudio.volume = parseFloat(savedVolume);
+    } else {
+        alertAudio.volume = 0.2;
+    }
 
     // 3. Load Timer Toggle
     const timerToggle = document.getElementById('timer-toggle');
