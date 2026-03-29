@@ -40,7 +40,21 @@ document.addEventListener("DOMContentLoaded", () => {
         soundToggle.addEventListener('change', (e) => localStorage.setItem('neoTimerSoundState', e.target.checked));
     }
 
-    // 5. Color Picker
+    // 5. Load Summer Time (DST) Toggle
+    const dstToggle = document.getElementById('dst-toggle');
+    const savedDst = localStorage.getItem('neoTimerDST');
+    if (dstToggle) {
+        if (savedDst !== null) dstToggle.checked = savedDst === 'true';
+        dstToggle.addEventListener('change', (e) => {
+            localStorage.setItem('neoTimerDST', e.target.checked);
+            if (window.globalCsvData) {
+                window.currentDayOffset = null; // Force UI rebuild
+                tick(); 
+            }
+        });
+    }
+
+    // 6. Color Picker
     document.querySelectorAll('.color-dot').forEach(dot => {
         dot.addEventListener('click', (e) => {
             const selectedColor = e.target.getAttribute('data-color');
@@ -49,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // 6. Setup Settings Modal & Volume Slider
+    // 7. Setup Settings Modal & Volume Slider
     const modal = document.getElementById('settings-modal');
     const cog = document.getElementById('settings-btn');
     const closeBtn = document.querySelector('.close-modal');
@@ -138,21 +152,28 @@ function populateSettings() {
 function tick() {
     if (!window.globalCsvData) return;
     const now = new Date();
+    
+    // Adjust for Summer Time
+    const savedDst = localStorage.getItem('neoTimerDST');
+    if (savedDst === 'true') {
+        now.setHours(now.getHours() - 1);
+    }
+
     const nowSec = (now.getHours() * 3600) + (now.getMinutes() * 60) + now.getSeconds();
 
-    const activeOffset = getActiveDayOffset(window.globalCsvData, nowSec);
+    const activeOffset = getActiveDayOffset(window.globalCsvData, nowSec, now);
 
     if (window.currentDayOffset !== activeOffset) {
         window.currentDayOffset = activeOffset;
-        buildDashboard(window.globalCsvData, activeOffset);
+        buildDashboard(window.globalCsvData, activeOffset, now);
     }
 
     updateTopClock(now, nowSec);
     updateTimers(nowSec, activeOffset);
 }
 
-function getActiveDayOffset(data, nowSec) {
-    const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
+function getActiveDayOffset(data, nowSec, now) {
+    const todayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(now);
     const todaysStandardBosses = data.filter(row => row.Weekday === todayStr && row.Region && row.Region.toLowerCase() !== 'monarch');
     const hasActiveBosses = todaysStandardBosses.some(boss => (boss.TargetSec + 300) > nowSec);
     return hasActiveBosses ? 0 : 1; 
@@ -179,15 +200,15 @@ function updateTopClock(now, nowSec) {
 }
 
 // --- UI BUILDER ---
-function buildDashboard(data, offset) {
+function buildDashboard(data, offset, now) {
     const grid = document.getElementById('timers-grid');
     grid.innerHTML = ''; 
     
-    const targetDate = new Date();
+    const targetDate = new Date(now);
     targetDate.setDate(targetDate.getDate() + offset);
     const displayDayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(targetDate);
     const isTomorrow = offset > 0;
-    const trueTodayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date());
+    const trueTodayStr = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(now);
 
     const displayStandardBosses = data.filter(row => row.Weekday === displayDayStr && row.Region && row.Region.toLowerCase() !== 'monarch');
     const trueTodayMonarchs = data.filter(row => row.Weekday === trueTodayStr && row.Region && row.Region.toLowerCase() === 'monarch');
@@ -305,7 +326,6 @@ function updateTimers(nowSec, activeOffset) {
             } else { 
                 // Past 5h mark
                 countdownEl.innerText = `Missed`;
-                // REMOVED the dimmed class!
                 card.dataset.priority = "2"; // Sinks it to the bottom
                 timeRemaining = 999999; // Prevents audio from triggering
             }
