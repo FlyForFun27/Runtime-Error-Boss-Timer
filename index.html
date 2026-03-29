@@ -65,28 +65,38 @@
         <div id="timers-grid" class="timers-grid"></div>
     </main>
 
-        <div id="settings-modal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Alert Settings</h2>
-                    <span class="close-modal">&times;</span>
-                </div>
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Alert Settings</h2>
+                <span class="close-modal">&times;</span>
+            </div>
             
             <div class="volume-container">
                 <div class="volume-header">
                     <span>Notification Volume</span>
                     <span id="volume-display">100%</span>
                 </div>
-                    <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
-                    <button id="test-sound-btn" class="test-btn">Test Sound</button>
+                <input type="range" id="volume-slider" min="0" max="1" step="0.05" value="1">
+                <button id="test-sound-btn" class="test-btn">Test Sound</button>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; background: var(--card-inner); padding: 10px 15px; border-radius: 6px; border: 1px solid #333; margin-top: 15px;">
+                <div class="toggle-container" style="width: 100%; justify-content: space-between;">
+                    <span class="toggle-label">Summer Time (+1h)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="dst-toggle">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
             </div>
 
             <hr style="border: 0; border-top: 1px solid #333; margin: 15px 0;">
 
             <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px;">Enable or disable sound alerts for specific regions.</p>
             <div class="modal-body" id="region-alert-list">
-                </div>
-          </div>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
