@@ -81,13 +81,14 @@
                 <button id="test-sound-btn" class="test-btn">Test Sound</button>
             </div>
 
-            <div style="display: flex; justify-content: space-between; background: var(--card-inner); padding: 10px 15px; border-radius: 6px; border: 1px solid #333; margin-top: 15px;">
-                <div class="toggle-container" style="width: 100%; justify-content: space-between;">
-                    <span class="toggle-label">Summer Time (+1h)</span>
-                    <label class="switch">
-                        <input type="checkbox" id="dst-toggle">
-                        <span class="slider round"></span>
-                    </label>
+            <div style="background: var(--card-inner); padding: 10px 15px; border-radius: 6px; border: 1px solid #333; margin-top: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <span class="toggle-label" style="font-size: 14px; color: var(--text-muted);">Server Region</span>
+                    <div class="region-btn-group">
+                        <button class="region-btn active" data-region="EU">EU</button>
+                        <button class="region-btn" data-region="NA">NA</button>
+                        <button class="region-btn" data-region="TW">TW</button>
+                    </div>
                 </div>
             </div>
 
