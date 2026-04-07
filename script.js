@@ -395,12 +395,7 @@ function buildMonarchColumn(grid) {
                 return;
             }
             
-            // Save locally
-            let currentKills = JSON.parse(localStorage.getItem('neoMonarchKills_' + reg)) || {};
-            currentKills[bName] = bTime;
-            localStorage.setItem('neoMonarchKills_' + reg, JSON.stringify(currentKills));
-            
-            // Submit
+            // Submit to server ONLY (removed local storage save)
             submitMonarchTime(reg, bName, bTime);
             
             // UI Feedback
@@ -415,7 +410,8 @@ function buildMonarchColumn(grid) {
                 msg.style.display = 'none';
             }, 5000);
             
-            tick(); 
+            // Fetch fresh community times immediately to reflect the new submission
+            fetchCommunityMonarchs(); 
         });
     });
 }
@@ -467,12 +463,10 @@ function updateTimers(nowSec, activeOffset, currentRegion) {
         const labelEl = card.querySelector('.estimated-label');
         const bName = card.dataset.bossName;
         
+        // Strictly pull from server data (removed local storage fallback)
         let displayTime = "";
         if (window.communityMonarchKills[currentRegion] && window.communityMonarchKills[currentRegion][bName]) {
             displayTime = window.communityMonarchKills[currentRegion][bName];
-        } else {
-            const localKills = JSON.parse(localStorage.getItem('neoMonarchKills_' + currentRegion)) || {};
-            displayTime = localKills[bName] || "";
         }
         
         avgTimeEl.innerText = displayTime !== "" ? displayTime : "--:--";
