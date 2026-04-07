@@ -159,12 +159,13 @@ function fetchCommunityMonarchs() {
         .catch(err => console.error("Error fetching community times:", err));
 }
 
-function submitMonarchTime(region, boss, timeStr) {
+// Updated to accept the isSpawn flag
+function submitMonarchTime(region, boss, timeStr, isSpawn) {
     if (WEB_APP_URL === "YOUR_WEB_APP_URL_HERE") return;
     
     fetch(WEB_APP_URL, {
         method: 'POST',
-        body: JSON.stringify({ region: region, boss: boss, time: timeStr })
+        body: JSON.stringify({ region: region, boss: boss, time: timeStr, isSpawn: isSpawn })
     }).catch(err => console.error("Error submitting time:", err));
 }
 
@@ -362,11 +363,20 @@ function buildMonarchColumn(grid) {
 
         card.innerHTML = `
             <p class="boss-name">${bossName}</p>
-            <div class="monarch-controls">
-                <span class="monarch-label">Submit Time:</span>
-                <div class="time-input-group">
-                    <input type="text" class="monarch-time-input" data-boss="${bossName}" placeholder="HH:MM" maxlength="5">
-                    <span class="submit-msg" style="display:none;">Time submitted</span>
+            <div class="monarch-controls" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="monarch-label">Submit Time:</span>
+                    <div class="time-input-group">
+                        <input type="text" class="monarch-time-input" data-boss="${bossName}" placeholder="HH:MM" maxlength="5">
+                        <span class="submit-msg" style="display:none;">Submitted</span>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="monarch-label" style="font-size: 9px; color: #666;">Is this a Spawn Time? (+5m)</span>
+                    <label class="switch" style="transform: scale(0.8); transform-origin: right center;">
+                        <input type="checkbox" class="spawn-toggle" data-boss="${bossName}">
+                        <span class="slider round"></span>
+                    </label>
                 </div>
             </div>
             <p class="time-since-kill">Last Announced: <span class="avg-time">--:--</span></p>
@@ -395,8 +405,12 @@ function buildMonarchColumn(grid) {
                 return;
             }
             
-            // Submit to server ONLY (removed local storage save)
-            submitMonarchTime(reg, bName, bTime);
+            // Grab the toggle state
+            const toggle = document.querySelector(`.spawn-toggle[data-boss="${bName}"]`);
+            const isSpawn = toggle ? toggle.checked : false;
+
+            // Submit to server with the new flag
+            submitMonarchTime(reg, bName, bTime, isSpawn);
             
             // UI Feedback
             const group = e.target.closest('.time-input-group');
@@ -404,13 +418,15 @@ function buildMonarchColumn(grid) {
             e.target.style.display = 'none';
             msg.style.display = 'inline';
 
+            // Reset field and switch after 5 seconds
             setTimeout(() => {
                 e.target.value = '';
                 e.target.style.display = 'inline-block';
                 msg.style.display = 'none';
+                if (toggle) toggle.checked = false; // Snap back to default
             }, 5000);
             
-            // Fetch fresh community times immediately to reflect the new submission
+            // Fetch fresh community times
             fetchCommunityMonarchs(); 
         });
     });
@@ -463,7 +479,6 @@ function updateTimers(nowSec, activeOffset, currentRegion) {
         const labelEl = card.querySelector('.estimated-label');
         const bName = card.dataset.bossName;
         
-        // Strictly pull from server data (removed local storage fallback)
         let displayTime = "";
         if (window.communityMonarchKills[currentRegion] && window.communityMonarchKills[currentRegion][bName]) {
             displayTime = window.communityMonarchKills[currentRegion][bName];
