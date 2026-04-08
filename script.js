@@ -363,7 +363,7 @@ function buildMonarchColumn(grid) {
         card.innerHTML = `
             <p class="boss-name">${bossName}</p>
             <div class="monarch-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0;">
-                <span class="monarch-label" style="color: var(--accent-color);">SUBMIT TIME:</span>
+                <span class="monarch-label" style="color: var(--accent-color);">SUBMIT (LOCAL TIME):</span>
                 
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="font-size: 11px; color: var(--text-light);">Announcement Time</span>
@@ -405,10 +405,31 @@ function buildMonarchColumn(grid) {
                 return;
             }
             
+            // --- NEW: Convert Local Time to Server Time before sending ---
+            const [localH, localM] = bTime.split(':').map(Number);
+            const localDate = new Date();
+            localDate.setHours(localH, localM, 0, 0);
+            
+            // Get UTC time of the local input
+            const utcMs = localDate.getTime() + (localDate.getTimezoneOffset() * 60000);
+            
+            // Apply the currently selected server region's offset
+            let offsetHours = 1; // Default EU
+            if (reg === 'NA') offsetHours = -6; 
+            else if (reg === 'TW') offsetHours = 8; 
+
+            // Create the new server time date object
+            const serverDate = new Date(utcMs + (offsetHours * 3600000));
+            const serverH = serverDate.getHours().toString().padStart(2, '0');
+            const serverM = serverDate.getMinutes().toString().padStart(2, '0');
+            const convertedServerTimeStr = `${serverH}:${serverM}`;
+            // -------------------------------------------------------------
+
             const toggle = document.querySelector(`.spawn-toggle[data-boss="${bName}"]`);
             const isSpawn = toggle ? toggle.checked : false;
 
-            submitMonarchTime(reg, bName, bTime, isSpawn);
+            // Submit the newly converted Server Time!
+            submitMonarchTime(reg, bName, convertedServerTimeStr, isSpawn);
             
             const group = e.target.closest('.time-input-group');
             const msg = group.querySelector('.submit-msg');
