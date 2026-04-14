@@ -429,3 +429,62 @@ input:checked + .slider:before { transform: translateX(16px); }
     border-color: var(--accent-color);
     color: var(--bg-dark);
 }
+
+/* --- Quick Log Panel Styles --- */
+.quick-log-panel {
+    background: var(--card-inner);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.quick-log-panel h2 {
+    margin-top: 0;
+    color: var(--accent-color);
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.quick-log-flex {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.region-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.region-group strong {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.quick-log-btn {
+    background-color: transparent;
+    color: var(--text-light);
+    border: 1px solid var(--accent-color);
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.quick-log-btn:hover {
+    background-color: var(--accent-color);
+    color: var(--bg-dark);
+}
+
+#status-message {
+    margin-top: 10px;
+    font-size: 13px;
+    font-weight: bold;
+    min-height: 18px;
+}
