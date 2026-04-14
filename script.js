@@ -147,6 +147,9 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchCommunityMonarchs();
         setInterval(fetchCommunityMonarchs, 60000); 
     }
+
+    // Initialize the Quick Log buttons!
+    renderQuickLogButtons();
 });
 
 function fetchCommunityMonarchs() {
@@ -623,4 +626,77 @@ function formatDuration(ms) {
     const s = Math.floor((ms % 60000) / 1000);
     const pad = (n) => n.toString().padStart(2, '0');
     return h > 0 ? `${h}h ${pad(m)}m ${pad(s)}s` : `${pad(m)}m ${pad(s)}s`;
+}
+
+// ==========================================
+// MONARCH QUICK LOG SYSTEM (NEW CODE)
+// ==========================================
+
+function renderQuickLogButtons() {
+    const container = document.getElementById("quick-log-container");
+    if (!container) return;
+    
+    const regions = ['EU', 'NA', 'TW'];
+    
+    regions.forEach(region => {
+        const regionGroup = document.createElement("div");
+        regionGroup.className = "region-group";
+        
+        const label = document.createElement("strong");
+        label.innerText = region;
+        regionGroup.appendChild(label);
+        
+        MONARCH_BOSSES.forEach(boss => {
+            const btn = document.createElement("button");
+            btn.innerText = boss.replace("Monarch ", ""); // Shortens to "CH 1"
+            btn.className = "quick-log-btn";
+            btn.onclick = () => logInstantSpawn(region, boss);
+            regionGroup.appendChild(btn);
+        });
+        
+        container.appendChild(regionGroup);
+    });
+}
+
+function showQuickLogStatus(message, isError = false) {
+    const statusEl = document.getElementById("status-message");
+    if (!statusEl) return;
+    statusEl.innerText = message;
+    statusEl.style.color = isError ? "#f87171" : "#4ade80"; 
+    setTimeout(() => { statusEl.innerText = ""; }, 5000);
+}
+
+function logInstantSpawn(region, boss) {
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const exactTimeStr = hours + ":" + minutes;
+
+    const payload = {
+        region: region,
+        boss: boss,
+        time: exactTimeStr,
+        isSpawn: true // Always true for Quick Logs so it subtracts 5 mins
+    };
+
+    showQuickLogStatus(`Sending ${boss} (${region}) to database...`);
+    
+    // We reuse your WEB_APP_URL variable here!
+    fetch(WEB_APP_URL, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "text/plain;charset=utf-8" }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            showQuickLogStatus(`✅ Successfully logged ${boss} for ${region} at ${exactTimeStr}!`);
+            fetchCommunityMonarchs(); // Instantly refresh the UI!
+        } else {
+            showQuickLogStatus("❌ Error saving data.", true);
+        }
+    })
+    .catch(error => {
+        showQuickLogStatus("❌ Network Error.", true);
+    });
 }
