@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // NEW: Load Local Time Toggle
+    // Load Local Time Toggle
     const localTimeToggle = document.getElementById('local-time-toggle');
     const savedLocalTime = localStorage.getItem('neoTimerLocalTime');
     if (localTimeToggle) {
@@ -147,9 +147,6 @@ document.addEventListener("DOMContentLoaded", () => {
         fetchCommunityMonarchs();
         setInterval(fetchCommunityMonarchs, 60000); 
     }
-
-    // Initialize the Quick Log buttons!
-    renderQuickLogButtons();
 });
 
 function fetchCommunityMonarchs() {
@@ -386,21 +383,26 @@ function buildMonarchColumn(grid) {
 
         card.innerHTML = `
             <p class="boss-name">${bossName}</p>
-            <div class="monarch-controls" style="display: flex; justify-content: space-between; align-items: center; padding: 5px 0;">
-                <span class="monarch-label" style="color: var(--accent-color);">SUBMIT TIME:</span>
-                
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 11px; color: var(--text-light);">Announcement Time</span>
-                    <label class="switch" style="transform: scale(0.7); margin: 0;">
-                        <input type="checkbox" class="spawn-toggle" data-boss="${bossName}">
-                        <span class="slider round"></span>
-                    </label>
-                    <span style="font-size: 11px; color: var(--text-light);">Spawn Time</span>
-                    
-                    <div class="time-input-group" style="margin-left: 5px; min-height: unset;">
-                        <input type="text" class="monarch-time-input" data-boss="${bossName}" placeholder="HH:MM" maxlength="5">
-                        <span class="submit-msg" style="display:none;">Submitted</span>
+            <div class="monarch-controls">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="monarch-label">MANUAL LOG:</span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 11px; color: var(--text-light);">Announce</span>
+                        <label class="switch" style="transform: scale(0.7); margin: 0;">
+                            <input type="checkbox" class="spawn-toggle" data-boss="${bossName}">
+                            <span class="slider round"></span>
+                        </label>
+                        <span style="font-size: 11px; color: var(--text-light);">Spawn</span>
+                        
+                        <div class="time-input-group" style="margin-left: 5px; min-height: unset;">
+                            <input type="text" class="monarch-time-input" data-boss="${bossName}" placeholder="HH:MM" maxlength="5">
+                            <span class="submit-msg" style="display:none;">Submitted</span>
+                        </div>
                     </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #333; padding-top: 8px;">
+                    <span class="monarch-label">QUICK LOG:</span>
+                    <button class="quick-log-inline-btn" data-boss="${bossName}" onclick="triggerInlineQuickLog('${bossName}')">Log Spawn (Now)</button>
                 </div>
             </div>
             <p class="time-since-kill">Last Announced: <span class="avg-time">--:--</span></p>
@@ -629,44 +631,10 @@ function formatDuration(ms) {
 }
 
 // ==========================================
-// MONARCH QUICK LOG SYSTEM (NEW CODE)
+// INLINE QUICK LOG FUNCTION
 // ==========================================
-
-function renderQuickLogButtons() {
-    const container = document.getElementById("quick-log-container");
-    if (!container) return;
-    
-    const regions = ['EU', 'NA', 'TW'];
-    
-    regions.forEach(region => {
-        const regionGroup = document.createElement("div");
-        regionGroup.className = "region-group";
-        
-        const label = document.createElement("strong");
-        label.innerText = region;
-        regionGroup.appendChild(label);
-        
-        MONARCH_BOSSES.forEach(boss => {
-            const btn = document.createElement("button");
-            btn.innerText = boss.replace("Monarch ", ""); // Shortens to "CH 1"
-            btn.className = "quick-log-btn";
-            btn.onclick = () => logInstantSpawn(region, boss);
-            regionGroup.appendChild(btn);
-        });
-        
-        container.appendChild(regionGroup);
-    });
-}
-
-function showQuickLogStatus(message, isError = false) {
-    const statusEl = document.getElementById("status-message");
-    if (!statusEl) return;
-    statusEl.innerText = message;
-    statusEl.style.color = isError ? "#f87171" : "#4ade80"; 
-    setTimeout(() => { statusEl.innerText = ""; }, 5000);
-}
-
-function logInstantSpawn(region, boss) {
+function triggerInlineQuickLog(boss) {
+    const region = localStorage.getItem('neoTimerRegion') || 'EU';
     const now = new Date();
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
@@ -676,12 +644,12 @@ function logInstantSpawn(region, boss) {
         region: region,
         boss: boss,
         time: exactTimeStr,
-        isSpawn: true // Always true for Quick Logs so it subtracts 5 mins
+        isSpawn: true // Always true for Quick Logs so the backend subtracts 5 mins automatically
     };
 
-    showQuickLogStatus(`Sending ${boss} (${region}) to database...`);
-    
-    // We reuse your WEB_APP_URL variable here!
+    const btnEl = document.querySelector(`.quick-log-inline-btn[data-boss="${boss}"]`);
+    if (btnEl) btnEl.innerText = "Sending...";
+
     fetch(WEB_APP_URL, {
         method: "POST",
         body: JSON.stringify(payload),
@@ -690,13 +658,28 @@ function logInstantSpawn(region, boss) {
     .then(response => response.json())
     .then(data => {
         if (data.status === "success") {
-            showQuickLogStatus(`✅ Successfully logged ${boss} for ${region} at ${exactTimeStr}!`);
+            if (btnEl) {
+                btnEl.innerText = "✅ Logged!";
+                btnEl.style.backgroundColor = "#4ade80"; 
+                btnEl.style.color = "#111";
+                setTimeout(() => { 
+                    btnEl.innerText = "Log Spawn (Now)";
+                    btnEl.style.backgroundColor = "";
+                    btnEl.style.color = "";
+                }, 3000);
+            }
             fetchCommunityMonarchs(); // Instantly refresh the UI!
         } else {
-            showQuickLogStatus("❌ Error saving data.", true);
+            if (btnEl) {
+                btnEl.innerText = "❌ Error";
+                setTimeout(() => { btnEl.innerText = "Log Spawn (Now)"; }, 3000);
+            }
         }
     })
     .catch(error => {
-        showQuickLogStatus("❌ Network Error.", true);
+        if (btnEl) {
+            btnEl.innerText = "❌ Error";
+            setTimeout(() => { btnEl.innerText = "Log Spawn (Now)"; }, 3000);
+        }
     });
 }
