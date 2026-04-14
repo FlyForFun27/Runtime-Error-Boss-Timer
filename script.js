@@ -635,23 +635,24 @@ function formatDuration(ms) {
 // ==========================================
 function triggerInlineQuickLog(boss) {
     const region = localStorage.getItem('neoTimerRegion') || 'EU';
-    
-    // THE FIX: Calculate the exact Server Time based on the active Region
     const offsetHours = getServerOffsetHours(region);
-    const localNow = new Date();
-    const utcMs = localNow.getTime() + (localNow.getTimezoneOffset() * 60000);
-    const serverNow = new Date(utcMs + (offsetHours * 3600000));
-
-    // Format the perfectly synced Server Time
-    const hours = serverNow.getHours().toString().padStart(2, '0');
-    const minutes = serverNow.getMinutes().toString().padStart(2, '0');
+    
+    // 1. Grab the absolute, universal UTC time right now (bypasses local PC clock)
+    const nowUTC = new Date().getTime();
+    
+    // 2. Mathematically shift the time to perfectly match the Server Region
+    const serverTime = new Date(nowUTC + (offsetHours * 3600 * 1000));
+    
+    // 3. Extract the hours using getUTC() to guarantee your local timezone doesn't interfere
+    const hours = serverTime.getUTCHours().toString().padStart(2, '0');
+    const minutes = serverTime.getUTCMinutes().toString().padStart(2, '0');
     const exactTimeStr = hours + ":" + minutes;
 
     const payload = {
         region: region,
         boss: boss,
         time: exactTimeStr,
-        isSpawn: true // Always true for Quick Logs
+        isSpawn: true // Automatically tells backend to subtract 5 mins
     };
 
     const btnEl = document.querySelector(`.quick-log-inline-btn[data-boss="${boss}"]`);
